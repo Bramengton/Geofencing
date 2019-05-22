@@ -7,23 +7,24 @@ import android.os.Parcelable;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.test.gof.util.Haversine;
 
 /**
  * @author Konstantin on 22.05.19.
  */
-public class GeofenceVal implements Parcelable {
+public class Geofences implements Parcelable {
     private static final int GEOFENCE_RADIUS = 500; // in meters
     private LatLng mLatLng;
     private double mRadius;
     private String mName;
     private int mDistance;
 
-    public GeofenceVal(LatLng latLng, double radius){
+    public Geofences(LatLng latLng, double radius){
         this.mLatLng = latLng;
         this.mRadius = radius;
     }
 
-    public GeofenceVal(LatLng latLng){
+    public Geofences(LatLng latLng){
         this(latLng, GEOFENCE_RADIUS);
     }
 
@@ -79,21 +80,21 @@ public class GeofenceVal implements Parcelable {
         dest.writeString(this.mName);
     }
 
-    protected GeofenceVal(Parcel in) {
+    protected Geofences(Parcel in) {
         this.mLatLng = in.readParcelable(LatLng.class.getClassLoader());
         this.mRadius = in.readDouble();
         this.mName = in.readString();
     }
 
-    public static final Creator<GeofenceVal> CREATOR = new Creator<GeofenceVal>() {
+    public static final Creator<Geofences> CREATOR = new Creator<Geofences>() {
         @Override
-        public GeofenceVal createFromParcel(Parcel source) {
-            return new GeofenceVal(source);
+        public Geofences createFromParcel(Parcel source) {
+            return new Geofences(source);
         }
 
         @Override
-        public GeofenceVal[] newArray(int size) {
-            return new GeofenceVal[size];
+        public Geofences[] newArray(int size) {
+            return new Geofences[size];
         }
     };
 }

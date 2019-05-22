@@ -1,4 +1,4 @@
-package com.test.gof;
+package com.test.gof.util;
 
 import com.google.android.gms.maps.model.LatLng;
 

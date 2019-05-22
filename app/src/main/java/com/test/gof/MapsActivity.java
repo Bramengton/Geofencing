@@ -1,14 +1,15 @@
 package com.test.gof;
 
 import android.annotation.SuppressLint;
-import android.content.Context;
+import android.content.ComponentName;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.IBinder;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -24,13 +25,11 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.tasks.OnSuccessListener;
+import com.test.gof.util.ServiceConnectionManager;
 
 import java.util.ArrayList;
 
-import es.dmoral.toasty.Toasty;
-
-public class MapsActivity extends BaseActivity implements OnMapReadyCallback, GoogleMap.OnCameraMoveListener, GoogleMap.OnCameraIdleListener, LocationListener {
+public class MapsActivity extends BaseActivity implements OnMapReadyCallback, GoogleMap.OnCameraMoveListener, GoogleMap.OnCameraIdleListener {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
@@ -38,6 +37,7 @@ public class MapsActivity extends BaseActivity implements OnMapReadyCallback, Go
             case LOC_PERM_REQ_CODE: {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     showCurrentLocationOnMap();
+                    myService.startLocation();
                     Toast.makeText(getApplicationContext(),
                             "Location access permission granted, you try " +
                                     "add or remove location allerts",
@@ -49,28 +49,25 @@ public class MapsActivity extends BaseActivity implements OnMapReadyCallback, Go
     }
 
     private GoogleMap mMap;
-    private FusedLocationProviderClient mFusedLocationClient;
-    private LocationManager mLocationManager;
-    private ArrayList<GeofenceVal> mGeofences = new ArrayList<>();
-    private boolean mFusedLocationFlag = true;
+    private PositionService myService;
+    private ServiceConnectionManager mServiceManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
         MapsInitializer.initialize(this);
+        PositionService.loadService(this, PositionService.class);
+        mServiceManager = getService();
         setSupportActionBar((Toolbar) findViewById(R.id.toolbar));
-        if(savedInstanceState!=null && savedInstanceState.containsKey("GEOFENCES"))
-            mGeofences = savedInstanceState.getParcelableArrayList("GEOFENCES");
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
     }
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
+        mServiceManager.bindToService();
         googleMap.getUiSettings().setZoomControlsEnabled(true);
         googleMap.setMinZoomPreference(15);
         googleMap.setOnCameraMoveListener(this);
@@ -90,27 +87,6 @@ public class MapsActivity extends BaseActivity implements OnMapReadyCallback, Go
     private void showCurrentLocationOnMap() {
         if (requestLocationAccessPermission() && mMap != null){
             mMap.setMyLocationEnabled(true);
-            if(mGeofences.isEmpty()) {
-                mFusedLocationClient.getLastLocation().addOnSuccessListener(this, new OnSuccessListener<Location>() {
-                    @Override
-                    public void onSuccess(Location location) {
-                        if (location != null) {
-                            LatLng position = new LatLng(location.getLatitude(), location.getLongitude());
-                            moveCameraToPosition(position);
-                            addNewRadius(position);
-                            mFusedLocationFlag = false;
-                        }
-                    }
-                });
-            }else{
-                LatLng point = null;
-                for(GeofenceVal geofenceVal : mGeofences){
-                    geofenceVal.drawCircle(mMap);
-                    point = geofenceVal.getCenter();
-                }
-                if(point!=null) mMap.addMarker(new MarkerOptions().position(point));
-            }
-            mLocationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 3000, 50, this);
         }
     }
 
@@ -125,54 +101,36 @@ public class MapsActivity extends BaseActivity implements OnMapReadyCallback, Go
     }
 
     private void addNewRadius(final LatLng point){
-        GeofenceVal geofence = new GeofenceVal(point);
-        mGeofences.add(geofence);
-        geofence.setName(String.format("%s radius", mGeofences.size()));
+        Geofences geofence = new Geofences(point);
+        myService.setGeofences(geofence);
+        geofence.setName(String.format("%s radius", myService.getGeofences().size()));
         updateMap(geofence.getCenter());
     }
 
     private void updateMap(final LatLng point){
-        if(!mGeofences.isEmpty()){
+        if(!myService.getGeofences().isEmpty()){
             mMap.clear();
-            for(GeofenceVal geofenceVal : mGeofences){
-                geofenceVal.drawCircle(mMap);
+            for(Geofences geofences : myService.getGeofences()){
+                geofences.drawCircle(mMap);
             }
             mMap.addMarker(new MarkerOptions().position(point));
         }
     }
 
     @Override
-    public void onLocationChanged(Location location) {
-        if (location != null && mFusedLocationFlag) {
-            LatLng myPosition = new LatLng(location.getLatitude(), location.getLongitude());
-            moveCameraToPosition(myPosition);
-        }
-        mFusedLocationFlag = true;
-    }
-
-    @Override
-    public void onStatusChanged(String provider, int status, Bundle extras) { }
-
-    @Override
-    public void onProviderEnabled(String provider) { }
-
-    @Override
-    public void onProviderDisabled(String provider) { }
-
-    @Override
     public void onCameraIdle() {
         LatLng position = mMap.getCameraPosition().target;
         StringBuilder message = new StringBuilder();
-        for (GeofenceVal geofenceVal : mGeofences){
-            int meters = geofenceVal.howFaraway(position);
-            if(geofenceVal.isInRadius(meters)){
-                message.append("We are outside: ").append(geofenceVal.getName());
+        for (Geofences geofences : myService.getGeofences()){
+            int meters = geofences.howFaraway(position);
+            if(geofences.isInRadius(meters)){
+                message.append("We are outside: ").append(geofences.getName());
             }else {
-                message.append("We are in: ").append(geofenceVal.getName());
+                message.append("We are in: ").append(geofences.getName());
             }
             if(message.length()>0) message.append(String.format(" on %s m", meters)).append("\n");
         }
-        Toasty.info(this, message, Toasty.LENGTH_LONG).show();
+        ((TextView)findViewById(R.id.message)).setText(message);
     }
 
     @Override
@@ -191,11 +149,12 @@ public class MapsActivity extends BaseActivity implements OnMapReadyCallback, Go
                 addNewRadius(mMap.getCameraPosition().target);
                 break;
             case R.id.menu_restore:
-                if(mGeofences.size()>1){
+                if(myService.getGeofences().size()>1){
                     mMap.clear();
-                    GeofenceVal val = mGeofences.get(0);
-                    mGeofences = new ArrayList<>();
-                    mGeofences.add(val);
+                    Geofences val = myService.getGeofences().get(0);
+                    ArrayList<Geofences> temp = new ArrayList<>();
+                    temp.add(val);
+                    myService.setGeofences(temp);
                     val.drawCircle(mMap);
                     mMap.addMarker(new MarkerOptions().position(val.getCenter()));
                     moveCameraToPosition(val.getCenter());
@@ -205,9 +164,80 @@ public class MapsActivity extends BaseActivity implements OnMapReadyCallback, Go
         return super.onOptionsItemSelected(item);
     }
 
+    protected ServiceConnectionManager getService(){
+        return new ServiceConnectionManager(this, PositionService.class) {
+            @Override
+            public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+                super.onServiceConnected(componentName, iBinder);
+                Log.e("TEST", "onServiceConnected");
+                myService = ((PositionService.LocalBinder) iBinder).getService(getServiceListener());
+                myService.checkGeofences();
+            }
+
+            @Override
+            public void onServiceDisconnected(ComponentName componentName) {
+                super.onServiceDisconnected(componentName);
+                Log.e("TEST", "onServiceDisconnected");
+            }
+        };
+    }
+
+
+    private OnServiceListener getServiceListener(){
+        return new OnServiceListener(){
+            @Override
+            public void onChange(LatLng point, boolean geofences) {
+                if(geofences){
+                    if (point != null) {
+                        moveCameraToPosition(point);
+                        addNewRadius(point);
+                    }
+                }
+            }
+
+            @Override
+            public void onServiceInAction(LatLng point, ArrayList<Geofences> list) {
+            if(list.isEmpty()) {
+                if (point != null) {
+                    moveCameraToPosition(point);
+                    addNewRadius(point);
+                }
+            }else{
+                LatLng pos = null;
+                for(Geofences val : list){
+                    val.drawCircle(mMap);
+                    pos = val.getCenter();
+                }
+                if(pos!=null) {
+                    mMap.addMarker(new MarkerOptions().position(point));
+                    moveCameraToPosition(pos);
+                }
+            }
+            }
+        };
+    }
+
     @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-        outState.putParcelableArrayList("GEOFENCES", mGeofences);
+    protected void onStart() {
+        super.onStart();
+        mServiceManager.bindToService();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if(myService!=null) myService.removeListener();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        mServiceManager.unbindFromService();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mServiceManager.unbindFromService();
     }
 }

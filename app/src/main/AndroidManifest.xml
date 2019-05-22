@@ -28,9 +28,10 @@
             </intent-filter>
         </activity>
 
-        <service
-            android:name=".LocationAlertIntentService"
-            android:allowBackup="true" />
+        <service android:name=".PositionService"
+            android:enabled="true"
+            android:exported="false"
+            android:stopWithTask="true"/>
     </application>
 
 </manifest>
