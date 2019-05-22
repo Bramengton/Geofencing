@@ -8,6 +8,7 @@ android {
         targetSdkVersion 28
         versionCode 1
         versionName "1.0"
+        vectorDrawables.useSupportLibrary = true
     }
     buildTypes {
         release {
@@ -26,4 +27,7 @@ dependencies {
 
     //============= Google Location and Activity Recognition
     implementation 'com.google.android.gms:play-services-location:16.0.0'
+
+    //============= Toasy - toast mode
+    implementation 'com.github.GrenderG:Toasty:1.4.2'
 }

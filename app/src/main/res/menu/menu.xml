@@ -2,8 +2,13 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
-        android:id="@+id/remove_loc_alert"
-        android:icon="@android:drawable/ic_dialog_dialer"
-        android:title="Remove Location Alerts"
+        android:id="@+id/menu_add"
+        android:icon="@drawable/plus_circle_outline"
+        android:title="@string/new_radius"
         app:showAsAction="always"/>
+    <item
+        android:id="@+id/menu_restore"
+        android:icon="@drawable/refresh"
+        android:title="@string/restore"
+        app:showAsAction="ifRoom"/>
 </menu>
