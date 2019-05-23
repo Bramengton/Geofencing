@@ -16,7 +16,6 @@ import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.maps.model.LatLng;
 import com.test.gof.util.ExtendService;
-import com.test.gof.util.Notify;
 
 import java.util.ArrayList;
 
@@ -25,7 +24,6 @@ import es.dmoral.toasty.Toasty;
 public class PositionService extends ExtendService {
     private LocationManager mLocationManager;
     private IBinder binder = new LocalBinder();
-    private Notify mNotify;
     private ArrayList<Geofences> mGeofences = new ArrayList<>();
     private LatLng mCurrentPosition;
 
@@ -56,14 +54,13 @@ public class PositionService extends ExtendService {
         super.onCreate();
         Log.i(TAG, "Service task started onCreate");
         mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        if(mNotify==null) mNotify = new Notify(getApplicationContext(), this);
+
         startLocation();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Intent i =new Intent(getApplicationContext(), MapsActivity.class).addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY);
-        mNotify.addContent(getString(R.string.app_name), "Service ONLINE").show(i);
+        createNotification(MapsActivity.class);
         return START_STICKY;
     }
 
@@ -85,8 +82,10 @@ public class PositionService extends ExtendService {
 
     public void startLocation(){
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                == PackageManager.PERMISSION_GRANTED)
-            mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 3000, 50, getListener());
+                == PackageManager.PERMISSION_GRANTED) {
+            mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 300, 50, getListener());
+            Toasty.warning(getApplicationContext(), "Wait GPS is on update..", Toasty.LENGTH_LONG).show();
+        }
     }
 
     private LocationListener getListener(){
@@ -115,13 +114,16 @@ public class PositionService extends ExtendService {
             }
 
             @Override
-            public void onStatusChanged(String provider, int status, Bundle extras) {}
+            public void onStatusChanged(String provider, int status, Bundle extras) {
+            }
 
             @Override
-            public void onProviderEnabled(String provider) {}
+            public void onProviderEnabled(String provider) {
+            }
 
             @Override
-            public void onProviderDisabled(String provider) {}
+            public void onProviderDisabled(String provider) {
+            }
         };
     }
 }

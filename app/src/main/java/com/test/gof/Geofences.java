@@ -17,7 +17,6 @@ public class Geofences implements Parcelable {
     private LatLng mLatLng;
     private double mRadius;
     private String mName;
-    private int mDistance;
 
     public Geofences(LatLng latLng, double radius){
         this.mLatLng = latLng;

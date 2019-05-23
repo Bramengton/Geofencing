@@ -1,9 +1,9 @@
 package com.test.gof;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.ComponentName;
 import android.content.pm.PackageManager;
-import android.location.Location;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
@@ -13,10 +13,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapsInitializer;
@@ -29,7 +30,17 @@ import com.test.gof.util.ServiceConnectionManager;
 
 import java.util.ArrayList;
 
-public class MapsActivity extends BaseActivity implements OnMapReadyCallback, GoogleMap.OnCameraMoveListener, GoogleMap.OnCameraIdleListener {
+public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleMap.OnCameraMoveListener, GoogleMap.OnCameraIdleListener {
+
+    protected static final int LOC_PERM_REQ_CODE = 1;
+    private boolean requestLocationAccessPermission(){
+        if(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)!= PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    LOC_PERM_REQ_CODE);
+            return false;
+        }else return true;
+    }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
